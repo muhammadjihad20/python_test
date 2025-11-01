@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Gemini</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #chat-container {
+            width: 90%;
+            max-width: 500px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        #chat-box {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+        }
+        .message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            line-height: 1.4;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        .user {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .bot {
+            background-color: #e9e9eb;
+            color: #333;
+            align-self: flex-start;
+        }
+        /* Style untuk pesan loading */
+        .loading {
+            color: #888;
+            font-style: italic;
+        }
+       
+        #input-area {
+            display: flex;
+            padding: 10px;
+        }
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+        #send-btn {
+            padding: 10px 15px;
+            margin-left: 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        <div id="chat-box" id="chat-box">
+            <div class="message bot">Halo! Tanyakan sesuatu padaku.</div>
+        </div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Ketik pesanmu...">
+            <button id="send-btn">Kirim</button>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        // URL server Flask Anda
+        const API_URL = 'http://127.0.0.1:5000/chat';
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const messageText = userInput.value.trim();
+            if (messageText === '') return;
+
+            // 1. Tampilkan pesan pengguna
+            addMessageToChat('user', messageText);
+            userInput.value = '';
+
+            // Tampilkan pesan "loading"
+            const loadingMessage = addMessageToChat('bot', '...', 'loading');
+
+            try {
+                // 2. Kirim pesan ke Backend (Python/Flask)
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: messageText }),
+                });
+
+                // Hapus pesan "loading"
+                chatBox.removeChild(loadingMessage);
+
+                if (!response.ok) {
+                    throw new Error('Gagal mendapatkan respons dari server');
+                }
+
+                const data = await response.json();
+
+                // 3. Tampilkan respons TEKS dari bot
+                if (data.text) {
+                    addMessageToChat('bot', data.text);
+                }
+
+           
+
+            } catch (error) {
+                console.error('Error:', error);
+                // Hapus pesan "loading" jika terjadi error
+                if (chatBox.contains(loadingMessage)) {
+                    chatBox.removeChild(loadingMessage);
+                }
+                addMessageToChat('bot', 'Maaf, terjadi kesalahan.');
+            }
+        }
+
+        function addMessageToChat(sender, text, type = '') {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+            if (type === 'loading') {
+                messageDiv.classList.add('loading');
+            }
+            messageDiv.innerText = text;
+            chatBox.appendChild(messageDiv);
+            scrollToBottom();
+            return messageDiv; // Kembalikan elemen untuk referensi (misal: menghapus loading)
+        }
+
+        
+        function scrollToBottom() {
+            // Auto-scroll ke bawah
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+
+</body>
+</html>
